@@ -1,0 +1,951 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Flappy</title>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    height: 100%;
+    width: 100%;
+    overflow: hidden;
+    background: #000;
+    font-family: 'Press Start 2P', 'Courier New', monospace;
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: manipulation;
+  }
+  body { display: flex; align-items: center; justify-content: center; }
+  #wrap {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    max-width: 480px;
+    max-height: 720px;
+    background: #4ec0ca;
+    box-shadow: 0 0 60px rgba(0,0,0,0.5);
+    overflow: hidden;
+  }
+  canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+  }
+  .overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+    color: #fff;
+    text-align: center;
+  }
+  .stroke {
+    text-shadow:
+      3px 0 0 #533847, -3px 0 0 #533847, 0 3px 0 #533847, 0 -3px 0 #533847,
+      3px 3px 0 #533847, -3px -3px 0 #533847, 3px -3px 0 #533847, -3px 3px 0 #533847;
+  }
+  .title {
+    font-size: clamp(28px, 8vw, 44px);
+    color: #f8e750;
+    margin-bottom: 24px;
+    transform: translateY(-60px);
+    animation: bob 1.6s ease-in-out infinite;
+  }
+  .get-ready {
+    font-size: clamp(28px, 8vw, 44px);
+    color: #ff8c4d;
+    margin-bottom: 16px;
+    transform: translateY(-140px);
+  }
+  .instructions {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    transform: translateY(-40px);
+    animation: pulse 1.2s ease-in-out infinite;
+  }
+  .arrow-up {
+    font-size: clamp(36px, 10vw, 56px);
+    color: #fff;
+    line-height: 1;
+    margin-bottom: 4px;
+  }
+  .tap-hand {
+    margin-bottom: 12px;
+  }
+  .hint-text {
+    font-size: clamp(10px, 3vw, 14px);
+    color: #fff;
+  }
+  .hint {
+    font-size: clamp(8px, 2.5vw, 11px);
+    color: #fff;
+    line-height: 1.8;
+    transform: translateY(60px);
+    animation: pulse 1.2s ease-in-out infinite;
+  }
+  .gameover {
+    font-size: clamp(22px, 7vw, 38px);
+    color: #ff5252;
+    margin-bottom: 18px;
+    transform: translateY(-80px);
+  }
+  .stats {
+    background: #ded895;
+    border: 4px solid #533847;
+    padding: 18px 22px;
+    color: #533847;
+    transform: translateY(-30px);
+    box-shadow: 5px 5px 0 rgba(0,0,0,0.3);
+    min-width: 220px;
+  }
+  .stats-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: clamp(8px, 2.5vw, 11px);
+    margin: 8px 0;
+    gap: 16px;
+  }
+  .stats .num {
+    color: #d4751a;
+    font-size: clamp(11px, 3.5vw, 16px);
+  }
+  .medal {
+    display: inline-block;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    border: 3px solid #533847;
+    box-shadow: inset -3px -3px 0 rgba(0,0,0,0.2), inset 3px 3px 0 rgba(255,255,255,0.3);
+  }
+  .medal-bronze { background: #cd7f32; }
+  .medal-silver { background: #c0c0c0; }
+  .medal-gold { background: #ffd700; }
+  .medal-platinum { background: #88d8e0; }
+  .new-best {
+    background: #ff5252;
+    color: #fff;
+    font-size: clamp(7px, 2vw, 9px);
+    padding: 3px 6px;
+    border: 2px solid #533847;
+    margin-left: 8px;
+  }
+  #liveScore {
+    position: absolute;
+    top: 30px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: clamp(28px, 8vw, 44px);
+    color: #fff;
+    text-shadow:
+      3px 0 0 #533847, -3px 0 0 #533847, 0 3px 0 #533847, 0 -3px 0 #533847,
+      3px 3px 0 #533847, -3px -3px 0 #533847, 3px -3px 0 #533847, -3px 3px 0 #533847;
+    pointer-events: none;
+    transition: transform 0.1s;
+    z-index: 5;
+  }
+  #liveScore.bump { transform: translateX(-50%) scale(1.25); }
+  #levelPill {
+    position: absolute;
+    top: 18px;
+    right: 18px;
+    background: rgba(0, 0, 0, 0.45);
+    color: #fff;
+    font-size: clamp(7px, 2vw, 10px);
+    padding: 6px 10px;
+    border: 2px solid rgba(255,255,255,0.6);
+    border-radius: 4px;
+    pointer-events: none;
+    z-index: 5;
+    letter-spacing: 1px;
+  }
+  #levelBanner {
+    position: absolute;
+    top: 38%;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: clamp(20px, 6vw, 32px);
+    color: #fff;
+    text-shadow:
+      3px 0 0 #533847, -3px 0 0 #533847, 0 3px 0 #533847, 0 -3px 0 #533847,
+      3px 3px 0 #533847, -3px -3px 0 #533847, 3px -3px 0 #533847, -3px 3px 0 #533847;
+    pointer-events: none;
+    z-index: 6;
+    letter-spacing: 2px;
+    white-space: nowrap;
+    animation: bannerPop 0.4s ease-out;
+  }
+  @keyframes bannerPop {
+    0% { transform: translateX(-50%) scale(0.5); opacity: 0; }
+    60% { transform: translateX(-50%) scale(1.15); opacity: 1; }
+    100% { transform: translateX(-50%) scale(1); opacity: 1; }
+  }
+  .hidden { display: none !important; }
+  @keyframes bob {
+    0%, 100% { transform: translateY(-60px); }
+    50% { transform: translateY(-72px); }
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <canvas id="game"></canvas>
+  <div id="liveScore" class="hidden">0</div>
+  <div id="levelPill" class="hidden">LVL 1 · MORNING</div>
+  <div id="levelBanner" class="hidden">LEVEL 1</div>
+
+  <div id="startScreen" class="overlay">
+    <div class="get-ready stroke">GET READY!</div>
+    <div class="instructions">
+      <div class="arrow-up stroke">↑</div>
+      <svg class="tap-hand" viewBox="0 0 64 64" width="60" height="60">
+        <path d="M28 48 L28 30 Q28 26 32 26 Q36 26 36 30 L36 38 L36 22 Q36 18 40 18 Q44 18 44 22 L44 38 L44 26 Q44 22 48 22 Q52 22 52 26 L52 42 Q52 54 40 54 L32 54 Q24 54 24 46 L20 38 Q18 34 22 32 Q26 30 28 34 Z" fill="#fff" stroke="#533847" stroke-width="3"/>
+      </svg>
+      <div class="hint-text stroke">TAP TO FLAP</div>
+    </div>
+  </div>
+
+  <div id="gameOverScreen" class="overlay hidden">
+    <div class="gameover stroke">GAME OVER</div>
+    <div class="stats" id="statsBox"></div>
+    <div class="hint stroke" style="transform: translateY(20px);">TAP TO RESTART</div>
+  </div>
+</div>
+
+<script>
+(() => {
+  const canvas = document.getElementById('game');
+  const ctx = canvas.getContext('2d');
+  const wrap = document.getElementById('wrap');
+  const startScreen = document.getElementById('startScreen');
+  const gameOverScreen = document.getElementById('gameOverScreen');
+  const liveScore = document.getElementById('liveScore');
+  const statsBox = document.getElementById('statsBox');
+
+  const W = 480;
+  const H = 720;
+
+  function resize() {
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = W * dpr;
+    canvas.height = H * dpr;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.imageSmoothingEnabled = false;
+  }
+  window.addEventListener('resize', resize);
+  resize();
+
+  // ---------- Audio ----------
+  let audioCtx;
+  function beep(freq, dur, type='square', vol=0.08) {
+    try {
+      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const osc = audioCtx.createOscillator();
+      const g = audioCtx.createGain();
+      osc.type = type;
+      osc.frequency.value = freq;
+      g.gain.value = vol;
+      osc.connect(g); g.connect(audioCtx.destination);
+      osc.start();
+      g.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + dur);
+      osc.stop(audioCtx.currentTime + dur);
+    } catch(e){}
+  }
+  const sfx = {
+    flap: () => beep(620, 0.08, 'square', 0.06),
+    score: () => { beep(880, 0.08, 'square', 0.07); setTimeout(()=>beep(1320,0.1,'square',0.07),60); },
+    hit: () => beep(140, 0.18, 'sawtooth', 0.12),
+    die: () => { beep(300,0.15,'sawtooth',0.12); setTimeout(()=>beep(180,0.25,'sawtooth',0.12),120); }
+  };
+
+  const STATE = { READY: 0, PLAYING: 1, OVER: 2 };
+  let state = STATE.READY;
+  let highScore = 0;
+
+  const bird = { x: 110, y: H/2, r: 14, vy: 0, rot: 0, flapPhase: 0 };
+
+  const pipes = [];
+  const PIPE_W = 64;
+  const PIPE_SPACING = 220;
+  const GRAVITY = 0.42;
+  const FLAP_V = -7.6;
+  const GROUND_H = 110;
+
+  // ---------- Levels & Themes ----------
+  // Level advances every 5 points. Difficulty scales with level.
+  const POINTS_PER_LEVEL = 5;
+
+  const THEMES = [
+    { // Lvl 1: Day
+      name: 'MORNING',
+      skyTop: '#4ec0ca', skyBot: '#7fd6dc',
+      cityFill: '#3b8b88', cityWindow: '#5fafac',
+      bushFill: '#8ed25c', bushShadow: '#73b842',
+      groundLight: '#ded895', groundGrass: '#73c93f', groundGrassDark: '#5ba82e',
+      groundDirt: '#caab6a', groundBottom: '#a5803d',
+      pipeDark: '#3d8b1e', pipeMid: '#5ba82e', pipeBody: '#73c93f',
+      pipeLight: '#a4e072', pipeOutline: '#2d5816',
+      cloud: '#ffffff', stars: false,
+    },
+    { // Lvl 2: Sunset
+      name: 'SUNSET',
+      skyTop: '#ff8a4d', skyBot: '#ffd29a',
+      cityFill: '#7a4a5e', cityWindow: '#a36a7e',
+      bushFill: '#c79a3e', bushShadow: '#a07828',
+      groundLight: '#e8c172', groundGrass: '#d4a04a', groundGrassDark: '#a8782e',
+      groundDirt: '#b8854a', groundBottom: '#7a5028',
+      pipeDark: '#a04020', pipeMid: '#d05028', pipeBody: '#e87040',
+      pipeLight: '#ff9866', pipeOutline: '#5a1810',
+      cloud: '#ffe0c4', stars: false,
+    },
+    { // Lvl 3: Night
+      name: 'NIGHT',
+      skyTop: '#0d1b3a', skyBot: '#2a3a6a',
+      cityFill: '#1a2848', cityWindow: '#f8d847',
+      bushFill: '#2a5a3a', bushShadow: '#1a4028',
+      groundLight: '#5a6a4a', groundGrass: '#3a5a2e', groundGrassDark: '#284018',
+      groundDirt: '#6a5838', groundBottom: '#3a2818',
+      pipeDark: '#5a2080', pipeMid: '#7a30a8', pipeBody: '#9a48c8',
+      pipeLight: '#c878e8', pipeOutline: '#2a0840',
+      cloud: '#3a4a7a', stars: true,
+    },
+    { // Lvl 4: Dawn
+      name: 'DAWN',
+      skyTop: '#9a6abe', skyBot: '#f8b8c8',
+      cityFill: '#5a4078', cityWindow: '#8a6aa8',
+      bushFill: '#6ab8a0', bushShadow: '#4a9080',
+      groundLight: '#d8c8d8', groundGrass: '#9ad0b8', groundGrassDark: '#6ab098',
+      groundDirt: '#b8a0b8', groundBottom: '#7a5a7a',
+      pipeDark: '#3070a8', pipeMid: '#48a0d0', pipeBody: '#68c0e8',
+      pipeLight: '#a8e0f8', pipeOutline: '#1a3868',
+      cloud: '#ffe8f0', stars: false,
+    },
+    { // Lvl 5+: Storm / Hard mode
+      name: 'STORM',
+      skyTop: '#3a3848', skyBot: '#5a5868',
+      cityFill: '#1a1828', cityWindow: '#5a5878',
+      bushFill: '#3a4838', bushShadow: '#2a3828',
+      groundLight: '#7a7868', groundGrass: '#4a583e', groundGrassDark: '#384028',
+      groundDirt: '#5a5848', groundBottom: '#2a2818',
+      pipeDark: '#a8201a', pipeMid: '#d8302a', pipeBody: '#f04840',
+      pipeLight: '#ff7060', pipeOutline: '#5a1010',
+      cloud: '#7a7888', stars: false,
+    },
+  ];
+
+  function getLevel(s) {
+    return Math.min(Math.floor(s / POINTS_PER_LEVEL) + 1, THEMES.length);
+  }
+  function getTheme(s) {
+    return THEMES[getLevel(s) - 1];
+  }
+  function getDifficulty(s) {
+    const level = getLevel(s);
+    return {
+      speed: 2.4 + (level - 1) * 0.35,           // 2.4 -> 3.8
+      gap: Math.max(170 - (level - 1) * 9, 130), // 170 -> 130
+      spacing: Math.max(220 - (level - 1) * 8, 188),
+    };
+  }
+
+  // Theme transition state for smooth color blending
+  let themeBlend = 1; // 0 = fully transitioning, 1 = settled
+  let prevTheme = THEMES[0];
+  let curTheme = THEMES[0];
+  let curLevel = 1;
+  let levelBannerTimer = 0;
+
+  // Stars for night theme
+  const stars = [];
+  for (let i = 0; i < 40; i++) {
+    stars.push({
+      x: Math.random() * W,
+      y: Math.random() * (H - GROUND_H - 100),
+      s: Math.random() < 0.3 ? 2 : 1,
+      twinkle: Math.random() * Math.PI * 2,
+    });
+  }
+
+  // Color blending helpers
+  function hexToRgb(hex) {
+    const n = parseInt(hex.slice(1), 16);
+    return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+  }
+  function lerpColor(a, b, t) {
+    if (t >= 1) return b;
+    if (t <= 0) return a;
+    const ca = hexToRgb(a), cb = hexToRgb(b);
+    const r = Math.round(ca[0] + (cb[0] - ca[0]) * t);
+    const g = Math.round(ca[1] + (cb[1] - ca[1]) * t);
+    const bl = Math.round(ca[2] + (cb[2] - ca[2]) * t);
+    return `rgb(${r},${g},${bl})`;
+  }
+  function tc(key) { // theme color (blended)
+    return lerpColor(prevTheme[key], curTheme[key], themeBlend);
+  }
+
+  let score = 0, frame = 0, groundX = 0, cityX = 0, bushX = 0, shake = 0, overTimer = 0, flashAlpha = 0;
+
+  const clouds = [];
+  for (let i = 0; i < 4; i++) {
+    clouds.push({
+      x: Math.random() * W,
+      y: 80 + Math.random() * 120,
+      s: 0.7 + Math.random() * 0.6,
+      sp: 0.12 + Math.random() * 0.1
+    });
+  }
+
+  function reset() {
+    bird.x = 110; bird.y = H/2; bird.vy = 0; bird.rot = 0;
+    pipes.length = 0;
+    score = 0; frame = 0; shake = 0; flashAlpha = 0;
+    curLevel = 1;
+    curTheme = THEMES[0];
+    prevTheme = THEMES[0];
+    themeBlend = 1;
+    levelBannerTimer = 0;
+    liveScore.textContent = '0';
+    updateLevelPill();
+  }
+
+  function spawnPipe() {
+    const diff = getDifficulty(score);
+    const minTop = 70;
+    const maxTop = H - GROUND_H - diff.gap - 70;
+    const top = minTop + Math.random() * (maxTop - minTop);
+    pipes.push({ x: W + 20, top, gap: diff.gap, passed: false });
+  }
+
+  function checkLevelUp() {
+    const newLevel = getLevel(score);
+    if (newLevel !== curLevel) {
+      curLevel = newLevel;
+      prevTheme = curTheme;
+      curTheme = THEMES[newLevel - 1];
+      themeBlend = 0;
+      levelBannerTimer = 120; // ~2 seconds
+      sfx.score();
+      setTimeout(() => beep(1760, 0.12, 'square', 0.08), 120);
+      updateLevelPill();
+    }
+  }
+
+  function updateLevelPill() {
+    const pill = document.getElementById('levelPill');
+    if (pill) {
+      pill.textContent = `LVL ${curLevel} · ${curTheme.name}`;
+    }
+  }
+
+  function flap() {
+    if (state === STATE.READY) {
+      state = STATE.PLAYING;
+      startScreen.classList.add('hidden');
+      liveScore.classList.remove('hidden');
+      document.getElementById('levelPill').classList.remove('hidden');
+      updateLevelPill();
+    }
+    if (state === STATE.PLAYING) {
+      bird.vy = FLAP_V;
+      bird.flapPhase = 0;
+      sfx.flap();
+    } else if (state === STATE.OVER) {
+      if (overTimer > 30) restart();
+    }
+  }
+
+  function restart() {
+    reset();
+    state = STATE.READY;
+    gameOverScreen.classList.add('hidden');
+    startScreen.classList.remove('hidden');
+    liveScore.classList.add('hidden');
+    document.getElementById('levelPill').classList.add('hidden');
+    document.getElementById('levelBanner').classList.add('hidden');
+  }
+
+  function getMedal(s) {
+    if (s >= 40) return 'medal-platinum';
+    if (s >= 20) return 'medal-gold';
+    if (s >= 10) return 'medal-silver';
+    if (s >= 3)  return 'medal-bronze';
+    return null;
+  }
+
+  function gameOver() {
+    if (state !== STATE.PLAYING) return;
+    state = STATE.OVER;
+    sfx.hit();
+    setTimeout(() => sfx.die(), 200);
+    shake = 18;
+    flashAlpha = 0.7;
+    overTimer = 0;
+    const newBest = score > highScore;
+    if (newBest) highScore = score;
+    const medal = getMedal(score);
+    const medalHTML = medal ? `<div class="medal ${medal}"></div>` : `<div style="width:36px;height:36px;"></div>`;
+    const reachedLevel = getLevel(score);
+
+    statsBox.innerHTML = `
+      <div class="stats-row">
+        <span>SCORE</span>
+        <span class="num">${score}${newBest && score > 0 ? '<span class="new-best">NEW!</span>' : ''}</span>
+      </div>
+      <div class="stats-row">
+        <span>BEST</span>
+        <span class="num">${highScore}</span>
+      </div>
+      <div class="stats-row">
+        <span>LEVEL</span>
+        <span class="num">${reachedLevel}</span>
+      </div>
+      <div class="stats-row" style="justify-content:center; margin-top:14px;">
+        ${medalHTML}
+      </div>
+    `;
+    document.getElementById('levelPill').classList.add('hidden');
+    document.getElementById('levelBanner').classList.add('hidden');
+    setTimeout(() => {
+      gameOverScreen.classList.remove('hidden');
+      liveScore.classList.add('hidden');
+    }, 600);
+  }
+
+  function onPress(e) { if (e) e.preventDefault(); flap(); }
+  wrap.addEventListener('mousedown', onPress);
+  wrap.addEventListener('touchstart', onPress, { passive: false });
+  window.addEventListener('keydown', (e) => {
+    if (e.code === 'Space' || e.code === 'ArrowUp') { e.preventDefault(); onPress(); }
+  });
+
+  // ---------- Drawing ----------
+  function drawSky() {
+    const grad = ctx.createLinearGradient(0, 0, 0, H - GROUND_H);
+    grad.addColorStop(0, tc('skyTop'));
+    grad.addColorStop(1, tc('skyBot'));
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, W, H - GROUND_H);
+
+    // Stars (night theme only, blends in/out)
+    const starAlpha = (curTheme.stars ? themeBlend : 0) +
+                      (prevTheme.stars ? (1 - themeBlend) : 0);
+    if (starAlpha > 0.02) {
+      for (const s of stars) {
+        const tw = 0.5 + 0.5 * Math.sin(frame * 0.05 + s.twinkle);
+        ctx.fillStyle = `rgba(255, 245, 200, ${starAlpha * tw})`;
+        ctx.fillRect(s.x, s.y, s.s, s.s);
+      }
+      // Moon
+      ctx.fillStyle = `rgba(248, 232, 180, ${starAlpha})`;
+      ctx.beginPath();
+      ctx.arc(W - 80, 90, 28, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = `rgba(${0x4e}, ${0xc0}, ${0xca}, ${starAlpha * 0.7})`;
+      ctx.beginPath();
+      ctx.arc(W - 70, 84, 24, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  function drawCloud(x, y, s) {
+    ctx.fillStyle = tc('cloud');
+    ctx.beginPath();
+    ctx.arc(x, y, 14*s, 0, Math.PI*2);
+    ctx.arc(x + 16*s, y - 6*s, 18*s, 0, Math.PI*2);
+    ctx.arc(x + 34*s, y, 14*s, 0, Math.PI*2);
+    ctx.arc(x + 18*s, y + 6*s, 14*s, 0, Math.PI*2);
+    ctx.fill();
+  }
+
+  function drawClouds() {
+    for (const c of clouds) {
+      drawCloud(c.x, c.y, c.s);
+      if (state === STATE.PLAYING) c.x -= c.sp;
+      if (c.x < -60) { c.x = W + 40; c.y = 80 + Math.random() * 120; }
+    }
+  }
+
+  function drawCity() {
+    const baseY = H - GROUND_H - 8;
+    const offset = -cityX % 240;
+    for (let i = -1; i < W/240 + 2; i++) {
+      const x = i * 240 + offset;
+      ctx.fillStyle = tc('cityFill');
+      ctx.fillRect(x,        baseY - 38, 30, 38);
+      ctx.fillRect(x + 28,   baseY - 52, 22, 52);
+      ctx.fillRect(x + 48,   baseY - 30, 28, 30);
+      ctx.fillRect(x + 74,   baseY - 60, 18, 60);
+      ctx.fillRect(x + 90,   baseY - 42, 32, 42);
+      ctx.fillRect(x + 120,  baseY - 30, 24, 30);
+      ctx.fillRect(x + 142,  baseY - 56, 28, 56);
+      ctx.fillRect(x + 168,  baseY - 36, 20, 36);
+      ctx.fillRect(x + 186,  baseY - 50, 34, 50);
+      ctx.fillRect(x + 218,  baseY - 32, 24, 32);
+      ctx.fillStyle = tc('cityWindow');
+      for (let j = 0; j < 6; j++) {
+        ctx.fillRect(x + 32 + j*4, baseY - 46, 2, 2);
+        ctx.fillRect(x + 78 + j*4, baseY - 54, 2, 2);
+        ctx.fillRect(x + 146 + j*4, baseY - 50, 2, 2);
+      }
+    }
+  }
+
+  function drawBushes() {
+    const baseY = H - GROUND_H;
+    const offset = -bushX % 60;
+    ctx.fillStyle = tc('bushFill');
+    for (let i = -1; i < W/60 + 2; i++) {
+      const x = i * 60 + offset;
+      ctx.beginPath();
+      ctx.arc(x + 14, baseY - 4, 14, Math.PI, 0);
+      ctx.arc(x + 32, baseY - 8, 16, Math.PI, 0);
+      ctx.arc(x + 50, baseY - 4, 14, Math.PI, 0);
+      ctx.lineTo(x + 60, baseY);
+      ctx.lineTo(x, baseY);
+      ctx.closePath();
+      ctx.fill();
+    }
+    ctx.fillStyle = tc('bushShadow');
+    ctx.fillRect(0, baseY - 2, W, 2);
+  }
+
+  function drawGround() {
+    const y = H - GROUND_H;
+    ctx.fillStyle = tc('groundLight');
+    ctx.fillRect(0, y, W, GROUND_H);
+
+    ctx.fillStyle = tc('groundGrass');
+    ctx.fillRect(0, y, W, 10);
+    ctx.fillStyle = tc('groundGrassDark');
+    ctx.fillRect(0, y + 10, W, 4);
+
+    ctx.fillStyle = tc('groundGrass');
+    for (let i = 0; i < W/16 + 2; i++) {
+      const x = (i * 16 - groundX) % (W + 16);
+      ctx.fillRect(x, y - 2, 4, 2);
+    }
+
+    ctx.fillStyle = tc('groundDirt');
+    ctx.fillRect(0, y + 14, W, 6);
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(0, y + 20, W, GROUND_H - 28);
+    ctx.clip();
+    ctx.strokeStyle = tc('groundDirt');
+    ctx.lineWidth = 8;
+    for (let i = -2; i < W/24 + 2; i++) {
+      const x = i * 32 - groundX;
+      ctx.beginPath();
+      ctx.moveTo(x, y + 20);
+      ctx.lineTo(x + 32, H);
+      ctx.stroke();
+    }
+    ctx.restore();
+
+    ctx.fillStyle = tc('groundBottom');
+    ctx.fillRect(0, H - 8, W, 8);
+  }
+
+  function drawPipe(p) {
+    const bottomY = p.top + p.gap;
+    const bottomH = H - GROUND_H - bottomY;
+    const x = p.x;
+
+    const cDark = tc('pipeDark'), cMid = tc('pipeMid'), cBody = tc('pipeBody'),
+          cLight = tc('pipeLight'), cOut = tc('pipeOutline');
+
+    function pipeSegment(px, py, pw, ph) {
+      ctx.fillStyle = cMid;
+      ctx.fillRect(px, py, pw, ph);
+      ctx.fillStyle = cBody;
+      ctx.fillRect(px + 4, py, pw - 8, ph);
+      ctx.fillStyle = cLight;
+      ctx.fillRect(px + 8, py, 6, ph);
+      ctx.fillStyle = cBody;
+      ctx.fillRect(px + 14, py, pw - 22, ph);
+      ctx.fillStyle = cDark;
+      ctx.fillRect(px + pw - 8, py, 8, ph);
+      ctx.fillStyle = cOut;
+      ctx.fillRect(px, py, 2, ph);
+      ctx.fillRect(px + pw - 2, py, 2, ph);
+    }
+
+    function pipeCap(cx, cy, cw, ch) {
+      ctx.fillStyle = cMid;
+      ctx.fillRect(cx, cy, cw, ch);
+      ctx.fillStyle = cBody;
+      ctx.fillRect(cx + 4, cy + 2, cw - 8, ch - 4);
+      ctx.fillStyle = cLight;
+      ctx.fillRect(cx + 8, cy + 2, 6, ch - 6);
+      ctx.fillStyle = cBody;
+      ctx.fillRect(cx + 14, cy + 2, cw - 22, ch - 6);
+      ctx.fillStyle = cDark;
+      ctx.fillRect(cx + cw - 10, cy + 2, 8, ch - 4);
+      ctx.fillStyle = cOut;
+      ctx.fillRect(cx, cy, cw, 2);
+      ctx.fillRect(cx, cy + ch - 2, cw, 2);
+      ctx.fillRect(cx, cy, 2, ch);
+      ctx.fillRect(cx + cw - 2, cy, 2, ch);
+    }
+
+    pipeSegment(x, 0, PIPE_W, p.top - 26);
+    pipeCap(x - 4, p.top - 26, PIPE_W + 8, 26);
+    pipeCap(x - 4, bottomY, PIPE_W + 8, 26);
+    pipeSegment(x, bottomY + 26, PIPE_W, bottomH - 26);
+  }
+
+  function drawBird() {
+    ctx.save();
+    ctx.translate(bird.x, bird.y);
+    ctx.rotate(bird.rot);
+
+    const wingFrame = Math.floor(bird.flapPhase) % 3;
+    const P = 2; // pixel size for chunky look
+
+    const D = '#553847';   // outline
+    const Y = '#f8d847';   // main yellow
+    const YL = '#fef0a4';  // light highlight
+    const YD = '#d8a82c';  // shadow
+    const WHT = '#fff';
+    const GRY = '#d8d8d8';
+    const ORG = '#ff8c1a';
+    const ORD = '#d65a14';
+
+    function px(x, y, c) {
+      ctx.fillStyle = c;
+      ctx.fillRect(x * P, y * P, P, P);
+    }
+    function row(x1, x2, y, c) {
+      ctx.fillStyle = c;
+      ctx.fillRect(x1 * P, y * P, (x2 - x1 + 1) * P, P);
+    }
+
+    // Body outline (rounded chunky shape)
+    row(-3, 3, -7, D);
+    row(-5, 5, -6, D);
+    row(-6, 6, -5, D);
+    row(-7, 7, -4, D);
+    row(-8, 7, -3, D);
+    row(-8, 7, -2, D);
+    row(-8, 7, -1, D);
+    row(-8, 7, 0, D);
+    row(-8, 7, 1, D);
+    row(-7, 7, 2, D);
+    row(-7, 7, 3, D);
+    row(-6, 6, 4, D);
+    row(-5, 5, 5, D);
+    row(-3, 3, 6, D);
+
+    // Yellow body fill
+    row(-2, 2, -6, Y);
+    row(-4, 4, -5, Y);
+    row(-5, 5, -4, Y);
+    row(-6, 6, -3, Y);
+    row(-7, 6, -2, Y);
+    row(-7, 6, -1, Y);
+    row(-7, 6, 0, Y);
+    row(-7, 6, 1, Y);
+    row(-6, 6, 2, Y);
+
+    // Highlight (top-left)
+    row(-1, 2, -6, YL);
+    row(-3, 1, -5, YL);
+    px(-4, -4, YL); px(-3, -4, YL);
+    px(-5, -3, YL);
+
+    // Shadow (right side)
+    px(5, -3, YD); px(6, -3, YD);
+    px(6, -2, YD); px(6, -1, YD);
+    px(6, 0, YD); px(6, 1, YD); px(6, 2, YD);
+
+    // White belly
+    row(-5, 5, 3, WHT);
+    row(-4, 4, 4, WHT);
+    row(-2, 2, 5, WHT);
+    // belly shading
+    row(-3, 3, 5, GRY);
+
+    // Wing (animated 3 frames)
+    let wing;
+    if (wingFrame === 0) {
+      wing = { x1: -5, x2: 1, y: 0, h: 2 };  // mid
+    } else if (wingFrame === 1) {
+      wing = { x1: -5, x2: 1, y: -3, h: 2 }; // up
+    } else {
+      wing = { x1: -5, x2: 1, y: 2, h: 2 };  // down
+    }
+    // Wing outline
+    ctx.fillStyle = D;
+    ctx.fillRect((wing.x1 - 1) * P, (wing.y - 1) * P, (wing.x2 - wing.x1 + 3) * P, (wing.h + 2) * P);
+    // Wing white
+    ctx.fillStyle = WHT;
+    ctx.fillRect(wing.x1 * P, wing.y * P, (wing.x2 - wing.x1 + 1) * P, wing.h * P);
+    // Wing shadow
+    ctx.fillStyle = GRY;
+    ctx.fillRect(wing.x1 * P, (wing.y + wing.h - 1) * P, (wing.x2 - wing.x1 + 1) * P, P);
+
+    // Eye outline
+    row(2, 5, -4, D);
+    row(1, 6, -3, D);
+    row(1, 6, -2, D);
+    row(1, 6, -1, D);
+    row(2, 5, 0, D);
+    // Eye white
+    row(2, 3, -3, WHT);
+    row(2, 3, -2, WHT);
+    row(2, 3, -1, WHT);
+    // Pupil
+    row(4, 5, -3, D);
+    row(4, 5, -2, D);
+    row(4, 5, -1, D);
+    // Eye highlight
+    px(2, -3, WHT);
+
+    // Beak
+    // Outline
+    row(7, 10, -1, D);
+    row(7, 11, 0, D);
+    row(7, 11, 1, D);
+    row(7, 11, 2, D);
+    row(7, 10, 3, D);
+    // Upper beak orange
+    row(7, 10, 0, ORG);
+    // Mouth line stays dark
+    // Lower beak red-orange
+    row(7, 10, 2, ORD);
+    // Highlight
+    px(7, 0, '#ffb55a');
+
+    ctx.restore();
+  }
+
+  function update() {
+    frame++;
+
+    // Smooth theme blend
+    if (themeBlend < 1) themeBlend = Math.min(1, themeBlend + 0.012);
+    if (levelBannerTimer > 0) levelBannerTimer--;
+
+    if (state === STATE.PLAYING) {
+      const diff = getDifficulty(score);
+      const speed = diff.speed;
+
+      bird.vy += GRAVITY;
+      bird.y += bird.vy;
+      bird.rot = Math.max(-0.5, Math.min(1.4, bird.vy * 0.08));
+      bird.flapPhase += bird.vy < 0 ? 0.5 : 0.2;
+
+      groundX = (groundX + speed) % 32;
+      bushX = (bushX + speed * 0.5) % 60;
+      cityX = (cityX + speed * 0.2) % 240;
+
+      if (pipes.length === 0 || pipes[pipes.length - 1].x < W - diff.spacing) spawnPipe();
+
+      for (const p of pipes) {
+        p.x -= speed;
+        if (!p.passed && p.x + PIPE_W < bird.x - bird.r) {
+          p.passed = true;
+          score++;
+          liveScore.textContent = score;
+          liveScore.classList.add('bump');
+          setTimeout(() => liveScore.classList.remove('bump'), 100);
+          sfx.score();
+          checkLevelUp();
+        }
+      }
+      while (pipes.length && pipes[0].x + PIPE_W < -20) pipes.shift();
+
+      if (bird.y + bird.r >= H - GROUND_H) {
+        bird.y = H - GROUND_H - bird.r;
+        gameOver();
+      }
+      if (bird.y - bird.r < 0) { bird.y = bird.r; bird.vy = 0; }
+
+      for (const p of pipes) {
+        if (bird.x + bird.r > p.x && bird.x - bird.r < p.x + PIPE_W) {
+          if (bird.y - bird.r < p.top || bird.y + bird.r > p.top + p.gap) {
+            gameOver();
+            break;
+          }
+        }
+      }
+    } else if (state === STATE.READY) {
+      bird.y = H/2 + Math.sin(frame * 0.08) * 8;
+      bird.rot = 0;
+      bird.flapPhase += 0.3;
+      groundX = (groundX + 1.2) % 32;
+      bushX = (bushX + 0.6) % 60;
+    } else if (state === STATE.OVER) {
+      overTimer++;
+      if (bird.y + bird.r < H - GROUND_H) {
+        bird.vy += GRAVITY * 1.2;
+        bird.y += bird.vy;
+        bird.rot = Math.min(1.6, bird.rot + 0.06);
+      } else {
+        bird.y = H - GROUND_H - bird.r;
+      }
+    }
+
+    if (shake > 0) shake *= 0.85;
+    if (flashAlpha > 0) flashAlpha *= 0.85;
+
+    // Update level banner DOM
+    const banner = document.getElementById('levelBanner');
+    if (banner) {
+      if (levelBannerTimer > 0) {
+        banner.textContent = `LEVEL ${curLevel} — ${curTheme.name}`;
+        banner.style.opacity = Math.min(1, levelBannerTimer / 30);
+        banner.classList.remove('hidden');
+      } else {
+        banner.classList.add('hidden');
+      }
+    }
+  }
+
+  function render() {
+    ctx.save();
+    if (shake > 0.3) {
+      ctx.translate((Math.random() - 0.5) * shake, (Math.random() - 0.5) * shake);
+    }
+
+    drawSky();
+    drawClouds();
+    drawCity();
+    drawBushes();
+    for (const p of pipes) drawPipe(p);
+    drawGround();
+    drawBird();
+
+    if (flashAlpha > 0.02) {
+      ctx.fillStyle = `rgba(255,255,255,${flashAlpha})`;
+      ctx.fillRect(0, 0, W, H);
+    }
+
+    ctx.restore();
+  }
+
+  function loop() {
+    update();
+    render();
+    requestAnimationFrame(loop);
+  }
+
+  loop();
+})();
+</script>
+</body>
+</html>
